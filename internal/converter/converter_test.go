@@ -1,10 +1,23 @@
 package converter
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/go-git/go-billy/v5/memfs"
 )
+
+func TestThings(t *testing.T) {
+	file := os.NewFile(uintptr(2), "Hello_World")
+	stat, err := file.Stat()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	fmt.Println(stat)
+}
 
 // Q: I don't know how I want to name these tests
 func TestCreateBillyFilesystemConverter(t *testing.T) {

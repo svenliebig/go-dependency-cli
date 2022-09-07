@@ -1,7 +1,6 @@
 package clone
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/svenliebig/go-dependency-cli/internal/utils/stringutils"
@@ -33,7 +32,7 @@ func TestGitClone(t *testing.T) {
 
 		// Q: What's the difference
 		fileBytes := make([]byte, stat.Size())
-		length, fileReadError := file.Read(fileBytes)
+		_, fileReadError := file.Read(fileBytes)
 
 		if fileStatError != nil {
 			t.Errorf("file.Read() error = %v, and we didn't ask for it", fileReadError)
@@ -42,10 +41,6 @@ func TestGitClone(t *testing.T) {
 
 		// TODO I could just somehow io.ReadAtLeast() https://gobyexample.com/reading-files
 
-		// Q: What's the difference
-		fmt.Printf("%d bytes: %s\n", length, string(fileBytes[:length]))
-		fmt.Println(string(fileBytes))
-
 		content := string(fileBytes)
 		firstLine := stringutils.GetFirstLine(content)
 
@@ -53,4 +48,19 @@ func TestGitClone(t *testing.T) {
 			t.Fatalf("Expected the first line of the LICENSE file to be 'Apache License', but it was '%s'.", firstLine)
 		}
 	})
+}
+
+// go test -benchmem -run=^$ -bench ^BenchmarkGitClone$ github.com/svenliebig/go-dependency-cli/internal/clone
+
+/*
+
+with billy removed:
+BenchmarkGitClone-12    	       1	1204926400 ns/op	  586136 B/op	    3369 allocs/op
+
+*/
+
+func BenchmarkGitClone(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		GitClone("https://github.com/halimath/mini-httpd.git", "main")
+	}
 }
