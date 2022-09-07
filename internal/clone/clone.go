@@ -7,137 +7,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/svenliebig/go-dependency-cli/internal/converter"
 )
 
-type FilesystemConverter interface {
-	Convert() fs.FS
-}
-
-type BillyFilesystemConverter struct {
-	from billy.Filesystem
-}
-
-type MyOwnFS struct {
-	files map[string]fs.File
-}
-
-type MyFile struct {
-	// TODO this feels so wrong
-	file billy.File
-	info fs.FileInfo
-}
-
-func (f MyFile) Stat() (fs.FileInfo, error) {
-	return f.info, nil
-}
-
-func (f MyFile) Read(b []byte) (int, error) {
-	return f.file.Read(b)
-}
-
-func (f MyFile) Close() error {
-	return f.file.Close()
-}
-
-func (myFs *MyOwnFS) Open(name string) (fs.File, error) {
-	file := myFs.files[name]
-
-	if file == nil {
-		return nil, &fs.PathError{Op: "Open", Path: name}
-	}
-
-	return file, nil
-}
-
-// Q: Maybe I want a static ConverterFactory.create(billy billy.FileSystem)
-//    I don't like that I set the billy filesystem after i initialize the converter
-//    this should feel more like a static function, but I like that I do not have to
-//    pass the billy.Fs inifinetly into the child functions.
-func (converter *BillyFilesystemConverter) Convert() fs.FS {
-	root := converter.from.Root()
-	infos, err := converter.from.ReadDir(root)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	files := converter.convertDirectory(infos)
-
-	repositoryFs := new(MyOwnFS)
-	repositoryFs.files = files
-
-	return repositoryFs
-}
-
-// TODO implement defer for closing stremas https://go.dev/blog/defer-panic-and-recover
-func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileInfo) map[string]fs.File {
-	m := map[string]fs.File{}
-
-	for index := range fileInfos {
-		fileInfo := fileInfos[index]
-
-		if fileInfo.IsDir() {
-			// TODO
-			// cantina band
-			// merge map response
-			// Q: how do I want to forward the prefix
-		} else {
-			billyFile, err := converter.from.Open(fileInfo.Name())
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			// TODO make() bytes with the specific length, should improve performance. Right? RIGHT GUYS?
-			// var bytes []byte
-			// _, err = billyFile.Read(bytes)
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// Q:
-			// So I basically just wrap the billyFile here into another file
-			// because I am not capable of copying the content of an in memory
-			// file to another one.
-			// basically.
-			// .
-			file := new(MyFile)
-			file.file = billyFile
-			file.info = fileInfo
-
-			// billyFile.Close()
-
-			// No, Create does actually create a file in the filesystem
-			// osFile, err := os.Create(billyFile.Name())
-			// osFile := os.NewFile(0, billyFile.Name())
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// osFile := os.NewFile(uintptr(length), billyFile.Name())
-
-			// _, err = osFile.Write(bytes)
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// osFile.Close()
-
-			m[billyFile.Name()] = file
-		}
-	}
-
-	return m
-}
-
 // TODO add branch parameter
-// TODO add FS return value
 func GitClone(url string, branch string) (fs.FS, error) {
 	memory := memory.NewStorage()
 	billyFs := memfs.New()
@@ -156,25 +32,8 @@ func GitClone(url string, branch string) (fs.FS, error) {
 
 	fmt.Println(billyFs.Root())
 
-	converter := new(BillyFilesystemConverter)
-	converter.from = billyFs
-	newFs := converter.Convert()
-
-	fmt.Println(newFs)
-
-	// dirInfo, err := billyFs.ReadDir(billyFs.Root())
-
-	// for index := range dirInfo {
-	// 	nfo := dirInfo[index]
-
-	// 	if nfo.IsDir() {
-	// 		// cantina band
-	// 	} else {
-	// 		fmt.Println(nfo.Name())
-	// 		fmt.Println(nfo.Size())
-
-	// 	}
-	// }
+	converter := converter.CreateBillyFilesystemConverter(billyFs)
+	newFs := converter.ToFS()
 
 	// b, _ := repository.Branch("main")
 	// ref, _ := repository.Reference(plumbing.ReferenceName(b.Remote))

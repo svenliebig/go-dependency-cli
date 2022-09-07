@@ -2,8 +2,9 @@ package clone
 
 import (
 	"fmt"
-	"strings"
 	"testing"
+
+	"github.com/svenliebig/go-dependency-cli/internal/utils/stringutils"
 )
 
 func TestGitClone(t *testing.T) {
@@ -46,7 +47,7 @@ func TestGitClone(t *testing.T) {
 		fmt.Println(string(fileBytes))
 
 		content := string(fileBytes)
-		firstLine := strings.Trim(content[:strings.Index(content, "\n")], " ")
+		firstLine := stringutils.GetFirstLine(content)
 
 		if firstLine != "Apache License" {
 			t.Fatalf("Expected the first line of the LICENSE file to be 'Apache License', but it was '%s'.", firstLine)
