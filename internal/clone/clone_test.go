@@ -56,6 +56,10 @@ func TestGitClone(t *testing.T) {
 
 with billy removed:
 BenchmarkGitClone-12    	       1	1204926400 ns/op	  586136 B/op	    3369 allocs/op
+BenchmarkGitClone-12    	       1	1408482500 ns/op	  582904 B/op	    3323 allocs/op
+
+with billy inside the newFile:
+BenchmarkGitClone-12    	       1	1027316400 ns/op	  547448 B/op	    3291 allocs/op
 
 */
 

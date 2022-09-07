@@ -3,6 +3,7 @@ package converter
 import (
 	"io/fs"
 	"log"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 )
@@ -27,8 +28,9 @@ type MyOwnFS struct {
 
 type MyFile struct {
 	// TODO this feels so wrong
-	file billy.File
-	info fs.FileInfo
+	// Q: when I create a pointer out of it, it get 8 Byte worse /op . . ?!
+	info   fs.FileInfo
+	reader *strings.Reader
 }
 
 func (f MyFile) Stat() (fs.FileInfo, error) {
@@ -36,11 +38,12 @@ func (f MyFile) Stat() (fs.FileInfo, error) {
 }
 
 func (f MyFile) Read(b []byte) (int, error) {
-	return f.file.Read(b)
+	return f.reader.Read(b)
 }
 
 func (f MyFile) Close() error {
-	return f.file.Close()
+	// Q: What actually TODO when closing a file?
+	return f.reader.UnreadByte()
 }
 
 func (myFs *MyOwnFS) Open(name string) (fs.File, error) {
@@ -93,8 +96,12 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 			defer billyFile.Close()
 
 			// TODO make() bytes with the specific length, should improve performance. Right? RIGHT GUYS?
-			// var bytes []byte
-			// _, err = billyFile.Read(bytes)
+			var bytes []byte = make([]byte, fileInfo.Size())
+			length, err := billyFile.Read(bytes)
+
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			// if err != nil {
 			// 	log.Fatal(err)
@@ -107,7 +114,10 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 			// basically.
 			// .
 			file := new(MyFile)
-			file.file = billyFile
+
+			reader := strings.NewReader(string(bytes[:length]))
+
+			file.reader = reader
 			file.info = fileInfo
 			m[billyFile.Name()] = file
 
