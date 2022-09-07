@@ -53,6 +53,10 @@ func (myFs *MyOwnFS) Open(name string) (fs.File, error) {
 	return file, nil
 }
 
+// Q: Maybe I want a static ConverterFactory.create(billy billy.FileSystem)
+//    I don't like that I set the billy filesystem after i initialize the converter
+//    this should feel more like a static function, but I like that I do not have to
+//    pass the billy.Fs inifinetly into the child functions.
 func (converter *BillyFilesystemConverter) Convert() fs.FS {
 	root := converter.from.Root()
 	infos, err := converter.from.ReadDir(root)
@@ -69,6 +73,7 @@ func (converter *BillyFilesystemConverter) Convert() fs.FS {
 	return repositoryFs
 }
 
+// TODO implement defer for closing stremas https://go.dev/blog/defer-panic-and-recover
 func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileInfo) map[string]fs.File {
 	m := map[string]fs.File{}
 
@@ -76,7 +81,10 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 		fileInfo := fileInfos[index]
 
 		if fileInfo.IsDir() {
+			// TODO
 			// cantina band
+			// merge map response
+			// Q: how do I want to forward the prefix
 		} else {
 			billyFile, err := converter.from.Open(fileInfo.Name())
 
@@ -84,12 +92,13 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 				log.Fatal(err)
 			}
 
-			var bytes []byte
-			_, err = billyFile.Read(bytes)
+			// TODO make() bytes with the specific length, should improve performance. Right? RIGHT GUYS?
+			// var bytes []byte
+			// _, err = billyFile.Read(bytes)
 
-			if err != nil {
-				log.Fatal(err)
-			}
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
 
 			// Q:
 			// So I basically just wrap the billyFile here into another file
