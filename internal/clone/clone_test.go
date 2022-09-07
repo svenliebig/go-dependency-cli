@@ -2,6 +2,7 @@ package clone
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -43,5 +44,12 @@ func TestGitClone(t *testing.T) {
 		// Q: What's the difference
 		fmt.Printf("%d bytes: %s\n", length, string(fileBytes[:length]))
 		fmt.Println(string(fileBytes))
+
+		content := string(fileBytes)
+		firstLine := strings.Trim(content[:strings.Index(content, "\n")], " ")
+
+		if firstLine != "Apache License" {
+			t.Fatalf("Expected the first line of the LICENSE file to be 'Apache License', but it was '%s'.", firstLine)
+		}
 	})
 }
