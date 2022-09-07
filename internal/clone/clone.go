@@ -26,6 +26,7 @@ type MyOwnFS struct {
 }
 
 type MyFile struct {
+	// TODO this feels so wrong
 	file billy.File
 	info fs.FileInfo
 }
@@ -90,6 +91,12 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 				log.Fatal(err)
 			}
 
+			// Q:
+			// So I basically just wrap the billyFile here into another file
+			// because I am not capable of copying the content of an in memory
+			// file to another one.
+			// basically.
+			// .
 			file := new(MyFile)
 			file.file = billyFile
 			file.info = fileInfo
