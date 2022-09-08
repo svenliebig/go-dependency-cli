@@ -1,8 +1,10 @@
 package converter
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-billy/v5"
@@ -27,10 +29,12 @@ type MyOwnFS struct {
 }
 
 type MyFile struct {
-	// TODO this feels so wrong
+	// TODO this feels so wrong... edit: still a bit
 	// Q: when I create a pointer out of it, it get 8 Byte worse /op . . ?!
 	info   fs.FileInfo
 	reader *strings.Reader
+
+	// TODO maybe implement isClosed boolean?
 }
 
 func (f MyFile) Stat() (fs.FileInfo, error) {
@@ -43,10 +47,12 @@ func (f MyFile) Read(b []byte) (int, error) {
 
 func (f MyFile) Close() error {
 	// Q: What actually TODO when closing a file?
+	// Q: implement isClosed probably?
 	return f.reader.UnreadByte()
 }
 
 func (myFs *MyOwnFS) Open(name string) (fs.File, error) {
+	// Q: / TODO maybe check with startsWith, if not, add //,  to prevent things.
 	file := myFs.files[name]
 
 	if file == nil {
@@ -69,33 +75,47 @@ func (converter *BillyFilesystemConverter) ToFS() fs.FS {
 	}
 
 	repositoryFs := new(MyOwnFS)
-	repositoryFs.files = converter.convertDirectory(infos)
+	// files := converter.getFiles(infos, root)
+
+	// for name, length := range files {
+
+	// }
+
+	repositoryFs.files = converter.convertDirectory(infos, root)
 
 	return repositoryFs
 }
 
 // TODO implement defer for closing stremas https://go.dev/blog/defer-panic-and-recover
-func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileInfo) map[string]fs.File {
-	m := map[string]fs.File{}
+func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileInfo, dir string) map[string]fs.File {
+	filesMap := map[string]fs.File{}
 
 	for index := range fileInfos {
 		fileInfo := fileInfos[index]
 
 		if fileInfo.IsDir() {
-			// TODO
-			// cantina band
-			// merge map response
-			// Q: how do I want to forward the prefix
-		} else {
-			billyFile, err := converter.from.Open(fileInfo.Name())
+			files, err := converter.from.ReadDir(converter.from.Join(dir, fileInfo.Name()))
 
 			if err != nil {
 				log.Fatal(err)
 			}
 
+			nestedMap := converter.convertDirectory(files, converter.from.Join(dir, fileInfo.Name()))
+
+			for key, file := range nestedMap {
+				filesMap[filepath.Clean(key)] = file
+			}
+		} else {
+			fileName := converter.from.Join(dir, fileInfo.Name())
+			billyFile, err := converter.from.Open(fileName)
+
+			if err != nil {
+				fmt.Printf("Error while trying to read file %s.", fileName)
+				log.Fatal(err)
+			}
+
 			defer billyFile.Close()
 
-			// TODO make() bytes with the specific length, should improve performance. Right? RIGHT GUYS?
 			var bytes []byte = make([]byte, fileInfo.Size())
 			length, err := billyFile.Read(bytes)
 
@@ -103,45 +123,42 @@ func (converter *BillyFilesystemConverter) convertDirectory(fileInfos []fs.FileI
 				log.Fatal(err)
 			}
 
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// Q:
-			// So I basically just wrap the billyFile here into another file
-			// because I am not capable of copying the content of an in memory
-			// file to another one.
-			// basically.
-			// .
 			file := new(MyFile)
 
 			reader := strings.NewReader(string(bytes[:length]))
 
 			file.reader = reader
 			file.info = fileInfo
-			m[billyFile.Name()] = file
-
-			// billyFile.Close()
-
-			// No, Create does actually create a file in the filesystem
-			// osFile, err := os.Create(billyFile.Name())
-			// osFile := os.NewFile(0, billyFile.Name())
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// osFile := os.NewFile(uintptr(length), billyFile.Name())
-
-			// _, err = osFile.Write(bytes)
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// osFile.Close()
-
+			filesMap[filepath.Clean(billyFile.Name())] = file
 		}
 	}
 
-	return m
+	return filesMap
 }
+
+// func (converter *BillyFilesystemConverter) getFiles(fileInfos []fs.FileInfo, dir string) map[string]int64 {
+// 	files := map[string]int64{}
+
+// 	for index := range fileInfos {
+// 		fileInfo := fileInfos[index]
+// 		if fileInfo.IsDir() {
+// 			// this works on the first level
+// 			files, err := converter.from.ReadDir(fileInfo.Name())
+
+// 			if err != nil {
+// 				log.Fatal(err)
+// 			}
+
+// 			nestedMap := converter.getFiles(files, fileInfo.Name())
+
+// 			for name, length := range nestedMap {
+// 				// files[converter.from.Join(dir, name)]
+// 				fmt.Printf("nested: %s // %s -> %d", fileInfo.Name(), name, length)
+// 			}
+// 		} else {
+// 			files[fileInfo.Name()] = fileInfo.Size()
+// 		}
+// 	}
+
+// 	return files
+// }
